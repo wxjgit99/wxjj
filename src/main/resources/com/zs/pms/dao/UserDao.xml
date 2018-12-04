@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zs.pms.dao.UserDao">
+	<!-- 关联映射
+		type:最外面的对象
+		id:自己命名
+	 -->
+	<resultMap type="TUser" id="usermap">
+	<id column="id" property="id"/>
+	<!-- 一对一关联
+	 		 property:属性名
+	 		 column:关联的字段名
+	 		 select:关联执行的SQL名称
+	 		   执行完SQL返回的对象赋值给属性dep		
+	-->
+		<association property="dept" column="dept" select="getDept" />
+		<collection property="tper" column="id" select="getTper" ofType="TPermission"/>
+	</resultMap>
+	
+	<!-- 只关联部门 -->
+	<resultMap type="TUser" id="usermap2">
+	<!-- 一对一关联
+	 		 property:属性名
+	 		 column:关联的字段名
+	 		 select:关联执行的SQL名称
+	 		   执行完SQL返回的对象赋值给属性dep		
+	-->
+		<association property="dept" column="dept" select="getDept" />
+		
+	</resultMap>
+	<!-- 根据用户的id获得权限列表
+	 	 参数#{id} 用户id
+	  -->
+	
+	<select id="getTper" parameterType="int" resultType="TPermission" >
+		select * from TPERMISSION where id in(select pid from TROLEPERMISSION where rid in
+		(select rid from TUSERROLE where  usid=#{id}))
+	</select>
+	<!-- 分页-->							
+	<select id="queryByPage" parameterType="QueryUser" resultMap="usermap2">
+		select * from 
+			(select rownum rn,t.* 
+			from (
+		 <include refid="selector"/>
+		 <include refid="where"/>
+		 <include refid="order"/>
+		 )t)t1
+		 <include refid="page"/>
+	</select>
+	<!-- 查询条数 -->
+	<select id="queryCount" parameterType="QueryUser" resultType="int">
+		select count(1)from tuser
+		<include refid="where"/>
+	</select>
+	<!-- 正常返回 -->							
+	<select id="queryByCon" parameterType="QueryUser" resultType="TUser">	
+		 <include refid="selector"/>
+		 <include refid="where"/>
+		 <include refid="order"/>
+		 
+	</select>
+	<!-- 关联返回 -->
+	<select id="queryById" parameterType="int" resultMap="usermap">
+		select * from tuser where id=#{id}
+		
+		
+	</select>
+	<!-- 关联执行的sql取部门 -->
+	<select id="getDept" parameterType="int" resultType="TDep">
+		select * from TDep where  id=#{dept}	
+	</select>	
+	<!-- 删除单个 -->
+	<delete id="delete" parameterType="int">
+		delete from tuser  where id =#{id}
+	</delete>
+	
+	<!-- 批量删除 -->
+	<delete id="deleteUser">
+	delete from tuser where id in
+		<foreach collection="array" item="id" separator=","  open="(" close=")" >
+		#{id}
+		</foreach>
+	</delete>
+	
+	<!-- 修改 -->
+	<update id="update" parameterType="TUser">
+		update tuser
+		<set>
+		<!-- 去掉最后一个逗号， -->
+			<trim suffixOverrides=",">
+				
+				<if test="password!=null and password!=''">
+					password=#{password},
+				</if>
+				<if test="sex!=null and sex!=''">
+					sex=#{sex},
+				</if>
+				<if test="birthday!=null">
+					birthday=#{birthday},
+				</if>
+				<if test="email!=null and email!=''">
+					email=#{email},
+				</if>
+				<if test="dept!=null">
+					dept=#{dept.id},
+				</if>
+				<if test="realname!=null and realname!=''">
+					realname=#{realname},
+				</if>
+				<if test="updator!=0">
+					updator=#{updator},
+				</if>
+				<if test="isenabled!=0">
+					isenabled=#{isenabled},
+				</if>
+				updatime=sysdate,
+			</trim>
+		</set>
+		where id=#{id}
+	</update>
+	
+	
+	<!-- sql片段 -->
+	<!-- 查什么 -->
+	<sql id="selector">
+		select * from tuser
+	</sql>
+	
+	<!-- 查询条件 -->
+	<sql id="where">
+		<where><!-- 自动判断 -->
+		<!-- 判断字符串 -->
+		<if test="loginname!=null and loginname!=''">
+			and loginname=#{loginname}
+		</if>
+		<if test="password!=null and password!=''">
+			and password=#{password}
+		</if>
+		<!-- 判数字 -->
+		<if test="isenabled">
+			and isenabled=#{isenabled}
+		</if>
+		</where>
+	</sql>
+	
+	<!-- 排序 -->
+	<sql id="order">
+		order by id desc
+	</sql>
+	
+	<!--
+		 分页
+		大于号和小于号进行转义
+		>:&gt;
+		<:&lt;
+	 -->
+	 <sql id="page">
+	 	<where>
+	 		<if test="start!=0">
+	 			and rn&gt;=#{start}
+	 		</if>
+	 		<if test="end!=0">
+	 			and rn&lt;=#{end}
+	 		</if>
+	 	</where>
+	 </sql>
+	 
+	 <!-- 新增 -->
+	 <insert id="insert" parameterType="TUser">
+	 	<selectKey keyProperty="id" order="BEFORE" resultType="int">
+	 	select   SQL_SS.Nextval from dual
+	 	</selectKey>
+	 	insert into tuser(id,loginname,password,sex,birthday,email,dept,realname,creator,creatime,pic,isenabled)
+	 	values(#{id},#{loginname},#{password},#{sex},#{birthday},#{email},#{dept.id},#{realname},#{creator},sysdate,#{pic},1)
+	 </insert>
+</mapper>
